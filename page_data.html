@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Website Stats & Traffic Analyzer</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --card-inner: #0f172a;
+      --accent: #3b82f6;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #334155;
+      --green: #22c55e;
+      --yellow: #eab308;
+      --red: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 2rem 1rem; min-height: 100vh; }
+    .container { max-width: 780px; margin: 0 auto; }
+    h1 { text-align: center; margin-bottom: 0.3rem; font-size: 1.8rem; }
+    p.subtitle { text-align: center; color: var(--text-muted); margin-bottom: 2rem; font-size: 0.95rem; }
+    
+    .input-box { display: flex; gap: 0.5rem; margin-bottom: 2rem; }
+    input[type="url"] {
+      flex: 1; padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--card-bg); color: var(--text); font-size: 1rem; outline: none;
+    }
+    input[type="url"]:focus { border-color: var(--accent); }
+    button {
+      padding: 0.75rem 1.5rem; border-radius: 8px; border: none; background: var(--accent);
+      color: white; font-weight: 600; cursor: pointer; transition: opacity 0.2s;
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .loader { display: none; text-align: center; margin: 2rem 0; color: var(--accent); font-weight: 600; }
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-top: 1.25rem; }
+    .error-box { background: rgba(239, 68, 68, 0.15); color: #fca5a5; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; display: none; }
+
+    /* SimilarWeb UI Specific Styles */
+    .sw-header { display: flex; align-items: center; gap: 0.8rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.25rem; }
+    .sw-favicon { width: 36px; height: 36px; border-radius: 6px; background: var(--card-inner); object-fit: contain; }
+    .sw-title-box { flex: 1; min-width: 0; }
+    .sw-domain { font-size: 1.15rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sw-category { font-size: 0.75rem; color: var(--text-muted); text-transform: capitalize; }
+    
+    .sw-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 1.25rem; }
+    .sw-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1.25rem; }
+    .sw-stat-tile { background: var(--card-inner); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem; text-align: center; }
+    .sw-stat-tile .label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.25rem; }
+    .sw-stat-tile .val { font-size: 1.2rem; font-weight: 700; color: #fff; }
+    .sw-stat-tile .sub { font-size: 0.7rem; color: var(--accent); margin-top: 2px; }
+
+    .sw-split-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; }
+    .sw-subpanel { background: var(--card-inner); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
+    .sw-subpanel h3 { font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.75rem; }
+
+    .sw-bar-item { margin-bottom: 0.6rem; font-size: 0.8rem; }
+    .sw-bar-labels { display: flex; justify-content: space-between; margin-bottom: 0.25rem; }
+    .sw-bar-bg { width: 100%; height: 6px; background: #334155; border-radius: 3px; overflow: hidden; }
+    .sw-bar-fill { height: 100%; background: var(--accent); border-radius: 3px; }
+
+    .keywords-wrap { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .kw-pill { background: #334155; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; display: flex; gap: 6px; }
+    .kw-vol { color: var(--text-muted); }
+
+    /* PageSpeed Audits */
+    .scores-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin-bottom: 1.25rem; }
+    .score-item { display: flex; flex-direction: column; align-items: center; text-align: center; }
+    .score-badge { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 50%; font-size: 1.1rem; font-weight: 700; margin-bottom: 0.4rem; }
+    .score-label { font-size: 0.7rem; color: var(--text-muted); line-height: 1.1; }
+    .score-good { background: rgba(34, 197, 94, 0.2); color: var(--green); border: 2px solid var(--green); }
+    .score-avg { background: rgba(234, 179, 8, 0.2); color: var(--yellow); border: 2px solid var(--yellow); }
+    .score-bad { background: rgba(239, 68, 68, 0.2); color: var(--red); border: 2px solid var(--red); }
+    .stat-row { display: flex; justify-content: space-between; margin-bottom: 0.6rem; font-size: 0.9rem; }
+    .stat-label { color: var(--text-muted); }
+    .stat-val { font-weight: 600; text-align: right; }
+
+    @media (max-width: 600px) {
+      .sw-grid-3, .sw-grid-4, .sw-split-2, .scores-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Website Analyzer</h1>
+  <p class="subtitle">Audits & Traffic Intelligence</p>
+
+  <form class="input-box" id="scanForm">
+    <input type="url" id="urlInput" placeholder="https://example.com" required />
+    <button type="submit" id="submitBtn">Analyze URL</button>
+  </form>
+
+  <div id="errorBox" class="error-box"></div>
+  <div id="loader" class="loader">Analyzing Website & Traffic Data... (Takes 5–10s)</div>
+
+  <!-- SimilarWeb Dashboard Card -->
+  <div id="trafficCard" class="card" style="display: none;">
+    <div class="sw-header">
+      <img id="swFavicon" class="sw-favicon" src="" alt="Icon" />
+      <div class="sw-title-box">
+        <div id="swDomainTitle" class="sw-domain">domain.com</div>
+        <div id="swCategory" class="sw-category">Category</div>
+      </div>
+    </div>
+
+    <!-- Rank Overview -->
+    <div class="sw-grid-3">
+      <div class="sw-stat-tile">
+        <div class="label">Global Rank</div>
+        <div class="val" id="swGlobalRank">--</div>
+      </div>
+      <div class="sw-stat-tile">
+        <div class="label">Country Rank</div>
+        <div class="val" id="swCountryRank">--</div>
+        <div class="sub" id="swCountryCode"></div>
+      </div>
+      <div class="sw-stat-tile">
+        <div class="label">Category Rank</div>
+        <div class="val" id="swCategoryRank">--</div>
+        <div class="sub" id="swCategoryName"></div>
+      </div>
+    </div>
+
+    <!-- Engagement Grid -->
+    <div class="sw-grid-4">
+      <div class="sw-stat-tile">
+        <div class="label">Monthly Visits</div>
+        <div class="val" id="swVisits">--</div>
+      </div>
+      <div class="sw-stat-tile">
+        <div class="label">Bounce Rate</div>
+        <div class="val" id="swBounce">--</div>
+      </div>
+      <div class="sw-stat-tile">
+        <div class="label">Pages / Visit</div>
+        <div class="val" id="swPages">--</div>
+      </div>
+      <div class="sw-stat-tile">
+        <div class="label">Avg Duration</div>
+        <div class="val" id="swDuration">--</div>
+      </div>
+    </div>
+
+    <!-- Geography & Traffic Channels -->
+    <div class="sw-split-2">
+      <div class="sw-subpanel">
+        <h3>Geography Shares</h3>
+        <div id="swCountryBars"></div>
+      </div>
+      <div class="sw-subpanel">
+        <h3>Traffic Channels</h3>
+        <div id="swSourceBars"></div>
+      </div>
+    </div>
+
+    <!-- Top Keywords -->
+    <div class="sw-subpanel" id="keywordsPanel" style="display: none;">
+      <h3>Top Organic Keywords</h3>
+      <div class="keywords-wrap" id="swKeywords"></div>
+    </div>
+  </div>
+
+  <!-- Google PageSpeed Card -->
+  <div id="results" class="card" style="display: none;">
+    <h2 style="font-size: 1.1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 1rem;">Google Lighthouse Audits</h2>
+    <div class="scores-row">
+      <div class="score-item">
+        <div id="perfBadge" class="score-badge">--</div>
+        <span class="score-label">Performance</span>
+      </div>
+      <div class="score-item">
+        <div id="accBadge" class="score-badge">--</div>
+        <span class="score-label">Accessibility</span>
+      </div>
+      <div class="score-item">
+        <div id="bpBadge" class="score-badge">--</div>
+        <span class="score-label">Best Practices</span>
+      </div>
+      <div class="score-item">
+        <div id="seoBadge" class="score-badge">--</div>
+        <span class="score-label">SEO</span>
+      </div>
+    </div>
+    
+    <div style="margin-top: 1.25rem;">
+      <div class="stat-row">
+        <span class="stat-label">First Contentful Paint (FCP):</span>
+        <span class="stat-val" id="fcpVal">--</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Largest Contentful Paint (LCP):</span>
+        <span class="stat-val" id="lcpVal">--</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Total Blocking Time (TBT):</span>
+        <span class="stat-val" id="tbtVal">--</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Cumulative Layout Shift (CLS):</span>
+        <span class="stat-val" id="clsVal">--</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const PSI_API_KEY = "AIzaSyBpipsin2Vgvqs9rf-5wb4ExSgKqEB4_P0";
+  const RAPIDAPI_KEY = "cfe8086f29msh01e487ff316a276p1b1501jsn07b34f3720d1";
+  const RAPIDAPI_HOST = "similarweb-insights.p.rapidapi.com";
+
+  const form = document.getElementById('scanForm');
+  const urlInput = document.getElementById('urlInput');
+  const submitBtn = document.getElementById('submitBtn');
+  const loader = document.getElementById('loader');
+  const results = document.getElementById('results');
+  const trafficCard = document.getElementById('trafficCard');
+  const errorBox = document.getElementById('errorBox');
+
+  function getBadgeClass(score) {
+    if (score >= 90) return 'score-good';
+    if (score >= 50) return 'score-avg';
+    return 'score-bad';
+  }
+
+  function renderBadge(elementId, score) {
+    const el = document.getElementById(elementId);
+    if (typeof score === 'number' && !isNaN(score)) {
+      el.textContent = score;
+      el.className = `score-badge ${getBadgeClass(score)}`;
+    } else {
+      el.textContent = 'N/A';
+      el.className = 'score-badge';
+    }
+  }
+
+  function extractDomain(inputUrl) {
+    try {
+      const urlObj = new URL(inputUrl.startsWith('http') ? inputUrl : `https://${inputUrl}`);
+      return urlObj.hostname.replace(/^www\./, '').toLowerCase();
+    } catch {
+      return inputUrl.replace(/^(?:https?:\/\/)?(?:www\.)?/i, "").split("/")[0].toLowerCase();
+    }
+  }
+
+  function formatDuration(seconds) {
+    if (!seconds || isNaN(seconds)) return 'N/A';
+    const totalSecs = Math.round(Number(seconds));
+    const mins = Math.floor(totalSecs / 60);
+    const secs = totalSecs % 60;
+    return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+  }
+
+  function renderBars(containerId, dataMap) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    const entries = Object.entries(dataMap || {}).filter(([_, val]) => val > 0);
+    
+    if (entries.length === 0) {
+      container.innerHTML = '<div style="font-size:0.8rem; color:var(--text-muted)">No data available</div>';
+      return;
+    }
+
+    entries.slice(0, 5).forEach(([label, ratio]) => {
+      const pct = (ratio * 100).toFixed(1);
+      const row = document.createElement('div');
+      row.className = 'sw-bar-item';
+      row.innerHTML = `
+        <div class="sw-bar-labels">
+          <span>${label}</span>
+          <span style="font-weight:600">${pct}%</span>
+        </div>
+        <div class="sw-bar-bg">
+          <div class="sw-bar-fill" style="width: ${pct}%"></div>
+        </div>
+      `;
+      container.appendChild(row);
+    });
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const targetUrl = urlInput.value.trim();
+    if (!targetUrl) return;
+
+    const domain = extractDomain(targetUrl);
+
+    errorBox.style.display = 'none';
+    results.style.display = 'none';
+    trafficCard.style.display = 'none';
+    loader.style.display = 'block';
+    submitBtn.disabled = true;
+
+    try {
+      // 1. Google PageSpeed
+      const psiEndpoint = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(targetUrl)}&category=PERFORMANCE&category=SEO&category=ACCESSIBILITY&category=BEST_PRACTICES&strategy=desktop&key=${PSI_API_KEY}`;
+      
+      // 2. Similarweb Insights
+      const rapidApiEndpoint = `https://${RAPIDAPI_HOST}/all-insights?domain=${encodeURIComponent(domain)}`;
+
+      const [psiRes, swRes] = await Promise.allSettled([
+        fetch(psiEndpoint).then(r => r.json()),
+        fetch(rapidApiEndpoint, {
+          method: 'GET',
+          headers: {
+            'x-rapidapi-key': RAPIDAPI_KEY,
+            'x-rapidapi-host': RAPIDAPI_HOST,
+            'Content-Type': 'application/json'
+          }
+        }).then(r => r.json())
+      ]);
+
+      // Populate SimilarWeb Insights
+      if (swRes.status === 'fulfilled' && swRes.value && !swRes.value.message?.includes('You are not subscribed')) {
+        const sw = swRes.value;
+
+        // Identity
+        document.getElementById('swDomainTitle').textContent = sw.WebsiteDetails?.Domain || domain;
+        document.getElementById('swCategory').textContent = (sw.WebsiteDetails?.Category || 'General').replace(/_/g, ' ');
+        document.getElementById('swFavicon').src = sw.WebsiteDetails?.Images?.Favicon || `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+
+        // Ranks
+        document.getElementById('swGlobalRank').textContent = sw.Rank?.GlobalRank ? `#${Number(sw.Rank.GlobalRank).toLocaleString()}` : 'N/A';
+        document.getElementById('swCountryRank').textContent = sw.Rank?.CountryRank?.Rank ? `#${Number(sw.Rank.CountryRank.Rank).toLocaleString()}` : 'N/A';
+        document.getElementById('swCountryCode').textContent = sw.Rank?.CountryRank?.Country || '';
+        document.getElementById('swCategoryRank').textContent = sw.Rank?.CategoryRank?.Rank ? `#${Number(sw.Rank.CategoryRank.Rank).toLocaleString()}` : 'N/A';
+        document.getElementById('swCategoryName').textContent = (sw.Rank?.CategoryRank?.Category || '').replace(/_/g, ' ');
+
+        // Engagement
+        let latestVisits = 'N/A';
+        if (sw.Traffic?.Visits) {
+          const vKeys = Object.keys(sw.Traffic.Visits);
+          if (vKeys.length > 0) latestVisits = Number(sw.Traffic.Visits[vKeys[vKeys.length - 1]]).toLocaleString();
+        }
+        document.getElementById('swVisits').textContent = latestVisits;
+        document.getElementById('swBounce').textContent = sw.Traffic?.Engagement?.BounceRate != null ? `${(sw.Traffic.Engagement.BounceRate * 100).toFixed(1)}%` : 'N/A';
+        document.getElementById('swPages').textContent = sw.Traffic?.Engagement?.PagesPerVisit ? Number(sw.Traffic.Engagement.PagesPerVisit).toFixed(2) : 'N/A';
+        document.getElementById('swDuration').textContent = formatDuration(sw.Traffic?.Engagement?.TimeOnSite);
+
+        // Bars
+        renderBars('swCountryBars', sw.Traffic?.TopCountryShares);
+        renderBars('swSourceBars', sw.Traffic?.Sources);
+
+        // Keywords
+        const kwPanel = document.getElementById('keywordsPanel');
+        const kwContainer = document.getElementById('swKeywords');
+        kwContainer.innerHTML = '';
+        const keywords = sw.SEOInsights?.TopKeywords;
+        if (Array.isArray(keywords) && keywords.length > 0) {
+          keywords.slice(0, 6).forEach(k => {
+            const pill = document.createElement('span');
+            pill.className = 'kw-pill';
+            pill.innerHTML = `<span>${k.Name}</span><span class="kw-vol">${Number(k.Volume || 0).toLocaleString()}</span>`;
+            kwContainer.appendChild(pill);
+          });
+          kwPanel.style.display = 'block';
+        } else {
+          kwPanel.style.display = 'none';
+        }
+
+        trafficCard.style.display = 'block';
+      }
+
+      // Populate Google Lighthouse
+      if (psiRes.status === 'fulfilled' && psiRes.value?.lighthouseResult) {
+        const cats = psiRes.value.lighthouseResult.categories;
+        const audits = psiRes.value.lighthouseResult.audits;
+
+        renderBadge('perfBadge', cats.performance ? Math.round(cats.performance.score * 100) : null);
+        renderBadge('accBadge', cats.accessibility ? Math.round(cats.accessibility.score * 100) : null);
+        renderBadge('bpBadge', cats['best-practices'] ? Math.round(cats['best-practices'].score * 100) : null);
+        renderBadge('seoBadge', cats.seo ? Math.round(cats.seo.score * 100) : null);
+
+        document.getElementById('fcpVal').textContent = audits['first-contentful-paint']?.displayValue || 'N/A';
+        document.getElementById('lcpVal').textContent = audits['largest-contentful-paint']?.displayValue || 'N/A';
+        document.getElementById('tbtVal').textContent = audits['total-blocking-time']?.displayValue || 'N/A';
+        document.getElementById('clsVal').textContent = audits['cumulative-layout-shift']?.displayValue || 'N/A';
+
+        results.style.display = 'block';
+      } else if (psiRes.status === 'rejected' || psiRes.value?.error) {
+        throw new Error(psiRes.value?.error?.message || 'PageSpeed API request failed');
+      }
+
+    } catch (err) {
+      errorBox.textContent = `Error: ${err.message}`;
+      errorBox.style.display = 'block';
+    } finally {
+      loader.style.display = 'none';
+      submitBtn.disabled = false;
+    }
+  });
+</script>
+
+</body>
+</html>
